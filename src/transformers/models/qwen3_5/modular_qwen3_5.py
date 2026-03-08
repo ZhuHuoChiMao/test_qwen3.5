@@ -544,6 +544,8 @@ class Qwen3_5TextModel(Qwen3NextModel):
         use_cache: bool | None = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> BaseModelOutputWithPast:
+        print("Qwen3_5TextModel forward modified")
+
         if (input_ids is None) ^ (inputs_embeds is not None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
@@ -709,6 +711,7 @@ class Qwen3_5ForCausalLM(Qwen3ForCausalLM):
 
     def __init__(self, config):
         super().__init__(config)
+        print("Qwen3_5ForCausalLM __init__ modified")
         self.model = Qwen3_5TextModel(config)
 
 
