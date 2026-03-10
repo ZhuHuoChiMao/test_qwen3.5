@@ -1822,7 +1822,6 @@ class Qwen3_5ForCausalLM(Qwen3_5PreTrainedModel, GenerationMixin):
         "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
         ```"""
 
-        print("Qwen3_5ForCausalLM __init__ modified")
         outputs: BaseModelOutputWithPast = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -1841,6 +1840,10 @@ class Qwen3_5ForCausalLM(Qwen3_5PreTrainedModel, GenerationMixin):
         loss = None
         if labels is not None:
             loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)
+
+        next_token_id = torch.argmax(logits[:, -1, :], dim=-1)
+        if (next_token_id == self.config.eos_token_id).any():
+            print("预测到了 eos token")
 
         return CausalLMOutputWithPast(
             loss=loss,
