@@ -392,10 +392,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-            if inputs_embeds is None:
-                inputs_embeds = self.embed_tokens(input_ids)
-
-                if not hasattr(self, "_embedding_plot_saved"):
+            if not hasattr(self, "_embedding_plot_saved"):
                     import os
                     import matplotlib.pyplot as plt
 
