@@ -392,6 +392,25 @@ class Qwen3Model(Qwen3PreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
+            import matplotlib.pyplot as plt
+            import os
+
+            # 取第 1 个 batch、第 1 个 token 的 embedding
+            emb = inputs_embeds[0, 0].detach().cpu().numpy()
+
+            # 只画前 100 维，避免太密
+            emb_part = emb[:100]
+
+            plt.figure(figsize=(16, 6))
+            plt.bar(range(len(emb_part)), emb_part)
+            plt.xlabel("Embedding Dimension")
+            plt.ylabel("Value")
+            plt.title("Embedding of first token (first 100 dims)")
+
+            save_path = "/content/embedding_bar.png"
+            plt.savefig(save_path, dpi=200, bbox_inches="tight")
+            plt.close()
+
             if not hasattr(self, "_embedding_plot_saved"):
                 import matplotlib.pyplot as plt
 
@@ -399,13 +418,20 @@ class Qwen3Model(Qwen3PreTrainedModel):
                 emb_part = emb[:100]
 
                 plt.figure(figsize=(16, 6))
-                plt.bar(range(len(emb_part)), emb_part)
+
+                bars = plt.bar(range(len(emb_part)), emb_part)
+
+                for i, v in enumerate(emb_part):
+                    if v >= 0:
+                        plt.text(i, v, f"{v:.2f}", ha='center', va='bottom', fontsize=8)
+                    else:
+                        plt.text(i, v, f"{v:.2f}", ha='center', va='top', fontsize=8)
+
                 plt.xlabel("Embedding Dimension")
                 plt.ylabel("Value")
                 plt.title("Embedding of first token (first 100 dims)")
 
-                save_path = "/content/embedding_bar.png"
-                plt.savefig(save_path, dpi=200, bbox_inches="tight")
+                plt.savefig("/content/embedding_bar.png", dpi=200, bbox_inches="tight")
                 plt.close()
 
                 print(f"saved to: {save_path}")
