@@ -392,24 +392,24 @@ class Qwen3Model(Qwen3PreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-            import matplotlib.pyplot as plt
-            import os
+            if not hasattr(self, "_embedding_plot_saved"):
+                import matplotlib.pyplot as plt
 
-            # 取第 1 个 batch、第 1 个 token 的 embedding
-            emb = inputs_embeds[0, 0].detach().cpu().numpy()
+                emb = inputs_embeds[0, 0].detach().float().cpu().numpy()
+                emb_part = emb[:100]
 
-            # 只画前 100 维，避免太密
-            emb_part = emb[:100]
+                plt.figure(figsize=(16, 6))
+                plt.bar(range(len(emb_part)), emb_part)
+                plt.xlabel("Embedding Dimension")
+                plt.ylabel("Value")
+                plt.title("Embedding of first token (first 100 dims)")
 
-            plt.figure(figsize=(16, 6))
-            plt.bar(range(len(emb_part)), emb_part)
-            plt.xlabel("Embedding Dimension")
-            plt.ylabel("Value")
-            plt.title("Embedding of first token (first 100 dims)")
+                save_path = "/content/embedding_bar.png"
+                plt.savefig(save_path, dpi=200, bbox_inches="tight")
+                plt.close()
 
-            save_path = "/content/embedding_bar.png"
-            plt.savefig(save_path, dpi=200, bbox_inches="tight")
-            plt.close()
+                print(f"saved to: {save_path}")
+                self._embedding_plot_saved = True
 
         if use_cache and past_key_values is None:
             past_key_values = DynamicCache(config=self.config)
