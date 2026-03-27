@@ -392,44 +392,48 @@ class Qwen3Model(Qwen3PreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-            if not hasattr(self, "_embedding_plot_saved"):
-                    import os
-                    import matplotlib.pyplot as plt
+            if not hasattr(self, "_embedding_values_saved"):
+                import os
+                import torch
 
-                    save_dir = "/content/embedding_plots"
-                    os.makedirs(save_dir, exist_ok=True)
+                save_dir = "/content/embedding_plots"
+                os.makedirs(save_dir, exist_ok=True)
 
-                    # inputs_embeds shape: [batch_size, seq_len, hidden_size]
-                    all_embs = inputs_embeds[0].detach().float().cpu().numpy()  # [seq_len, hidden_size]
-                    seq_len = all_embs.shape[0]
+                save_path = os.path.join(save_dir, "embedding_first3dims.txt")
+
+                # 保持 BF16，不先转 float32 / numpy
+                all_embs = inputs_embeds[0].detach().cpu().to(torch.bfloat16)  # [seq_len, hidden_size]
+                seq_len = all_embs.shape[0]
+
+                with open(save_path, "w", encoding="utf-8") as f:
+                    f.write("Saved first 3 embedding dims for each token\n")
+                    f.write("Values are taken from BF16 tensor.\n\n")
 
                     for i in range(seq_len):
                         token_id = input_ids[0, i].item() if input_ids is not None else -1
-                        emb = all_embs[i]  # 当前 token 的全部 embedding 维度
+                        emb = all_embs[i]
 
-                        # 图尽量画宽一点，否则所有柱子和数字会挤在一起
-                        plt.figure(figsize=(max(20, len(emb) * 0.18), 8))
-                        plt.bar(range(len(emb)), emb)
+                        f.write(f"token_position={i}, token_id={token_id}\n")
 
-                        # 给每根柱子加数值
-                        for j, v in enumerate(emb):
-                            if v >= 0:
-                                plt.text(j, v, f"{v:.2f}", ha="center", va="bottom", fontsize=6, rotation=90)
-                            else:
-                                plt.text(j, v, f"{v:.2f}", ha="center", va="top", fontsize=6, rotation=90)
+                        for j in range(3):  # 前3维
+                            if j < emb.shape[0]:
+                                # BF16 数值本体
+                                v_bf16 = emb[j]
 
-                        plt.xlabel("Embedding Dimension")
-                        plt.ylabel("Value")
-                        plt.title(f"Token position {i}, token_id={token_id} (all embedding dims)")
-                        plt.tight_layout()
+                                # 转成 float32 只是为了写入文本显示
+                                v_display = float(v_bf16.to(torch.float32).item())
 
-                        save_path = os.path.join(save_dir, f"token_{i}_id_{token_id}_embedding_bar.png")
-                        plt.savefig(save_path, dpi=200, bbox_inches="tight")
-                        plt.close()
+                                # 取 BF16 原始16位模式，最能体现“和 BF16 匹配”
+                                v_bits = v_bf16.view(torch.uint16).item()
 
-                        print(f"saved to: {save_path}")
+                                f.write(
+                                    f"  dim{j + 1}: value={v_display:.7g}, bf16_bits=0x{v_bits:04x}\n"
+                                )
 
-                    self._embedding_plot_saved = True
+                        f.write("\n")
+
+                print(f"saved values to: {save_path}")
+                self._embedding_values_saved = True
 
         if use_cache and past_key_values is None:
             past_key_values = DynamicCache(config=self.config)
