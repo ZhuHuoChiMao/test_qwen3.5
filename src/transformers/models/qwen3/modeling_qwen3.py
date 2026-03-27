@@ -392,50 +392,47 @@ class Qwen3Model(Qwen3PreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-            import matplotlib.pyplot as plt
-            import os
+            if inputs_embeds is None:
+                inputs_embeds = self.embed_tokens(input_ids)
 
-            # 取第 1 个 batch、第 1 个 token 的 embedding
-            emb = inputs_embeds[0, 0].detach().cpu().numpy()
+                if not hasattr(self, "_embedding_plot_saved"):
+                    import os
+                    import matplotlib.pyplot as plt
 
-            # 只画前 100 维，避免太密
-            emb_part = emb[:100]
+                    save_dir = "/content/embedding_plots"
+                    os.makedirs(save_dir, exist_ok=True)
 
-            plt.figure(figsize=(16, 6))
-            plt.bar(range(len(emb_part)), emb_part)
-            plt.xlabel("Embedding Dimension")
-            plt.ylabel("Value")
-            plt.title("Embedding of first token (first 100 dims)")
+                    # inputs_embeds shape: [batch_size, seq_len, hidden_size]
+                    all_embs = inputs_embeds[0].detach().float().cpu().numpy()  # [seq_len, hidden_size]
+                    seq_len = all_embs.shape[0]
 
-            save_path = "/content/embedding_bar.png"
-            plt.savefig(save_path, dpi=200, bbox_inches="tight")
-            plt.close()
+                    for i in range(seq_len):
+                        token_id = input_ids[0, i].item() if input_ids is not None else -1
+                        emb = all_embs[i]  # 当前 token 的全部 embedding 维度
 
-            if not hasattr(self, "_embedding_plot_saved"):
-                import matplotlib.pyplot as plt
+                        # 图尽量画宽一点，否则所有柱子和数字会挤在一起
+                        plt.figure(figsize=(max(20, len(emb) * 0.18), 8))
+                        plt.bar(range(len(emb)), emb)
 
-                emb = inputs_embeds[0, 0].detach().float().cpu().numpy()
-                emb_part = emb[:100]
+                        # 给每根柱子加数值
+                        for j, v in enumerate(emb):
+                            if v >= 0:
+                                plt.text(j, v, f"{v:.2f}", ha="center", va="bottom", fontsize=6, rotation=90)
+                            else:
+                                plt.text(j, v, f"{v:.2f}", ha="center", va="top", fontsize=6, rotation=90)
 
-                plt.figure(figsize=(16, 6))
+                        plt.xlabel("Embedding Dimension")
+                        plt.ylabel("Value")
+                        plt.title(f"Token position {i}, token_id={token_id} (all embedding dims)")
+                        plt.tight_layout()
 
-                bars = plt.bar(range(len(emb_part)), emb_part)
+                        save_path = os.path.join(save_dir, f"token_{i}_id_{token_id}_embedding_bar.png")
+                        plt.savefig(save_path, dpi=200, bbox_inches="tight")
+                        plt.close()
 
-                for i, v in enumerate(emb_part):
-                    if v >= 0:
-                        plt.text(i, v, f"{v:.2f}", ha='center', va='bottom', fontsize=8)
-                    else:
-                        plt.text(i, v, f"{v:.2f}", ha='center', va='top', fontsize=8)
+                        print(f"saved to: {save_path}")
 
-                plt.xlabel("Embedding Dimension")
-                plt.ylabel("Value")
-                plt.title("Embedding of first token (first 100 dims)")
-
-                plt.savefig("/content/embedding_bar.png", dpi=200, bbox_inches="tight")
-                plt.close()
-
-                print(f"saved to: {save_path}")
-                self._embedding_plot_saved = True
+                    self._embedding_plot_saved = True
 
         if use_cache and past_key_values is None:
             past_key_values = DynamicCache(config=self.config)
